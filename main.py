@@ -21,7 +21,6 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 TOKEN = "1278045157:AAHCKTffFYAegrjgzTfm1KsgVuj4g0vRf78"
-PORT = 5432
 
 MARKUP_1 = InlineKeyboardMarkup([
     [InlineKeyboardButton('Event Handling', callback_data='one')],
