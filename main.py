@@ -29,19 +29,19 @@ MARKUP_1 = InlineKeyboardMarkup([
 ])
 
 # DB connection
-con = psycopg2.connect(user="dzwnjonhbsmqyu",
-                       password="781f607ee579c427c05b3b1e3346da5d655dd8187500cbf4ab2a9d58a80c73e7",
-                       host="ec2-34-232-147-86.compute-1.amazonaws.com",
-                       port="5432", database="dcqfivrciptlut")
-cur = con.cursor()
-cur.execute("CREATE TABLE studentsavers.ScheduledMsg (id serial PRIMARY KEY, message varchar, created timestamp);")
-con.commit()
+# con = psycopg2.connect(user="dzwnjonhbsmqyu",
+#                        password="781f607ee579c427c05b3b1e3346da5d655dd8187500cbf4ab2a9d58a80c73e7",
+#                        host="ec2-34-232-147-86.compute-1.amazonaws.com",
+#                        port="5432", database="dcqfivrciptlut")
+# cur = con.cursor()
+# cur.execute("CREATE TABLE studentsavers.ScheduledMsg (id serial PRIMARY KEY, message varchar, created timestamp);")
+# con.commit()
 
 def start(update, context):
-    cur.execute("INSERT INTO studentsavers.ScheduledMsg(message, created) VALUES('hello', CURRENT_TIMESTAMP);")
-    con.commit()
-    cur.close()
-    con.close()
+    # cur.execute("INSERT INTO studentsavers.ScheduledMsg(message, created) VALUES('hello', CURRENT_TIMESTAMP);")
+    # con.commit()
+    # cur.close()
+    # con.close()
     """Send a message when the command /start is issued."""
     update.message.reply_text('Hi, welcome to StudentSavers. Glad to have you here. Please choose one of the following services:',reply_markup=MARKUP_1)
 
