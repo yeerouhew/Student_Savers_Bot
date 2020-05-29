@@ -23,23 +23,23 @@ logger = logging.getLogger(__name__)
 TOKEN = "1278045157:AAHCKTffFYAegrjgzTfm1KsgVuj4g0vRf78"
 
 # DB connection
-# con = psycopg2.connect(user="dzwnjonhbsmqyu",
-#                        password="781f607ee579c427c05b3b1e3346da5d655dd8187500cbf4ab2a9d58a80c73e7",
-#                        host="ec2-34-232-147-86.compute-1.amazonaws.com",
-#                        port="5432", database="dcqfivrciptlut")
-# cur = con.cursor()
-# cur.execute("CREATE TABLE IF NOT EXISTS studentsavers.ScheduledMsg (id serial PRIMARY KEY, message varchar, created timestamp);")
-# con.commit()
+con = psycopg2.connect(user="dzwnjonhbsmqyu",
+                       password="781f607ee579c427c05b3b1e3346da5d655dd8187500cbf4ab2a9d58a80c73e7",
+                       host="ec2-34-232-147-86.compute-1.amazonaws.com",
+                       port="5432", database="dcqfivrciptlut")
+cur = con.cursor()
+cur.execute("CREATE TABLE IF NOT EXISTS studentsavers.Room (id serial PRIMARY KEY, status varchar, next_availabletime timestamp);")
+con.commit()
 
 def start(update, context):
-    # cur.execute("INSERT INTO studentsavers.ScheduledMsg(message, created) VALUES('hello', CURRENT_TIMESTAMP);")
-    # con.commit()
-    # cur.close()
-    # con.close()
+    cur.execute("INSERT INTO studentsavers.Room(status, next_availabletime) VALUES('Available', CURRENT_TIMESTAMP);")
+    con.commit()
+
     features = [
         [InlineKeyboardButton('Event Handling', callback_data='eventhandling')],
         [InlineKeyboardButton('Room Searching', callback_data='roomsearching')]
     ]
+
     reply_markup = InlineKeyboardMarkup(features)
     update.message.reply_text('Hi, welcome to Studentsavers bot. Glad to have you here.What do you want to do?', reply_markup=reply_markup)
     logger.info('/start command triggered')
@@ -54,6 +54,11 @@ def inlinebutton(update, context):
 
     if query.data == 'roomsearching':
         query.edit_message_text(text='You choose {}'.format('Checking room availability'))
+        roomList = cur.execute("SELECT * FROM studentsavers.Room")
+        con.commit()
+        context.bot.send_message(chat_id, 'Room searching info: {}'.format(roomList))
+        cur.close()
+        con.close()
         logger.info('roomsearching option selected')
 
 
