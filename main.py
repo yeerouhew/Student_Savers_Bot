@@ -5,7 +5,7 @@ Created on Fri May 22 15:21:17 2020
 """
 
 import logging
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
 from telegram import InlineKeyboardMarkup
 from telegram import InlineKeyboardButton
 import datetime
@@ -22,18 +22,13 @@ logger = logging.getLogger(__name__)
 
 TOKEN = "1278045157:AAHCKTffFYAegrjgzTfm1KsgVuj4g0vRf78"
 
-MARKUP_1 = InlineKeyboardMarkup([
-    [InlineKeyboardButton('Event Handling', callback_data='one')],
-    [InlineKeyboardButton('Room Searching', callback_data='two')]
-])
-
 # DB connection
 # con = psycopg2.connect(user="dzwnjonhbsmqyu",
 #                        password="781f607ee579c427c05b3b1e3346da5d655dd8187500cbf4ab2a9d58a80c73e7",
 #                        host="ec2-34-232-147-86.compute-1.amazonaws.com",
 #                        port="5432", database="dcqfivrciptlut")
 # cur = con.cursor()
-# cur.execute("CREATE TABLE studentsavers.ScheduledMsg (id serial PRIMARY KEY, message varchar, created timestamp);")
+# cur.execute("CREATE TABLE IF NOT EXISTS studentsavers.ScheduledMsg (id serial PRIMARY KEY, message varchar, created timestamp);")
 # con.commit()
 
 def start(update, context):
@@ -41,8 +36,26 @@ def start(update, context):
     # con.commit()
     # cur.close()
     # con.close()
-    """Send a message when the command /start is issued."""
-    update.message.reply_text('Hi, welcome to StudentSavers. Glad to have you here. Please choose one of the following services:',reply_markup=MARKUP_1)
+    features = [
+        [InlineKeyboardButton('Event Handling', callback_data='eventhandling')],
+        [InlineKeyboardButton('Room Searching', callback_data='roomsearching')]
+    ]
+    reply_markup = InlineKeyboardMarkup(features)
+    update.message.reply_text('Hi, welcome to Studentsavers bot. Glad to have you here.')
+    update.message.reply_text('What do you want to do?',reply_markup=reply_markup)
+    logger.info('/start command triggered')
+
+def inlinebutton(update, context):
+    query = update.callback_query
+    chat_id = query.from_user['id']
+
+    if query.data == 'eventhandling':
+        query.edit_message_text(text='You choose {}'.format('Event Handling'))
+        logger.info('eventhandling option selected')
+
+    if query.data == 'roomsearching':
+        query.edit_message_text(text='You choose {}'.format('Checking room availability'))
+        logger.info('roomsearching option selected')
 
 
 def setCom(update, context):
@@ -121,10 +134,8 @@ def main():
 
     # on different commands - answer in Telegram
     dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CallbackQueryHandler(inlinebutton))
     dp.add_handler(CommandHandler("help", help))
-
-    # on noncommand i.e message - echo the message on Telegram
-    # dp.add_handler(MessageHandler(Filters.text, echo))
 
     # log all errors
     dp.add_error_handler(error)
