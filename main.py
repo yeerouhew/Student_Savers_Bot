@@ -41,8 +41,7 @@ def start(update, context):
         [InlineKeyboardButton('Room Searching', callback_data='roomsearching')]
     ]
     reply_markup = InlineKeyboardMarkup(features)
-    update.message.reply_text('Hi, welcome to Studentsavers bot. Glad to have you here.')
-    update.message.reply_text('What do you want to do?',reply_markup=reply_markup)
+    update.message.reply_text('Hi, welcome to Studentsavers bot. Glad to have you here.What do you want to do?', reply_markup=reply_markup)
     logger.info('/start command triggered')
 
 def inlinebutton(update, context):
