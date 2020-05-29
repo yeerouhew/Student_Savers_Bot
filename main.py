@@ -55,8 +55,9 @@ def inlinebutton(update, context):
     if query.data == 'roomsearching':
         query.edit_message_text(text='You choose {}'.format('Checking room availability'))
         roomList = cur.execute("SELECT * FROM studentsavers.Room")
+        roomList2 = cur.fetchone()
         con.commit()
-        context.bot.send_message(chat_id, 'Room searching info: {}'.format(roomList))
+        context.bot.send_message(chat_id, 'Room searching info: {}'.format(roomList2))
         cur.close()
         con.close()
         logger.info('roomsearching option selected')
