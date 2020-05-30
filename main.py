@@ -218,10 +218,10 @@ def stop_nested(update, context):
 def setCom(update, context):
     update.message.reply_text('/set <date>')
 
-    def alarm(context2):
+def alarm(context):
         # Send alarm message
-        job = context2.job
-        context2.bot.send_message(job.context, text='CS2030 DEADLINE')
+        job = context.job
+        context.bot.send_message(job.context, text='CS2030 DEADLINE')
 
 
 def set_timer(update, context):
