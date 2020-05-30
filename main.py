@@ -1,25 +1,33 @@
-"""
-Created on Fri May 22 15:21:17 2020
-@author: yeerouhew
-"""
-
 import logging
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
+import os
+
+from telegram import (InlineKeyboardMarkup, InlineKeyboardButton)
+from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters,
+                          ConversationHandler, CallbackQueryHandler)
 from telegram import InlineKeyboardMarkup
 from telegram import InlineKeyboardButton
 import datetime
 import psycopg2
 
-#deploy to heroku
-import os
+# State definitions for top level conversation
+SELECTING_ACTION, ROOM_SEARCHING, EVENT_HANDLING, HANDLING_EVENT = map(chr, range(4))
+# State definitions for second level conversation
+SELECT_BUILDING, SELECTING_LEVEL = map(chr, range(4, 6))
+# State definitions for descriptions conversation
+SELECTING_FEATURE, TYPING = map(chr, range(6, 8))
+# Meta states
+STOPPING, SHOWING = map(chr, range(8, 10))
+# Shortcut for ConversationHandler.END
+END = ConversationHandler.END
 
 PORT = int(os.environ.get('PORT', 5000))
 
 # Enable logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-logger = logging.getLogger(__name__)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
 
-TOKEN = "1278045157:AAHCKTffFYAegrjgzTfm1KsgVuj4g0vRf78"
+logger = logging.getLogger(__name__)
+TOKEN = "1193424503:AAEmaiBPPn6uUrr9x1EAJYKp_X_bgpriUT4"
 
 # DB connection
 con = psycopg2.connect(user="dzwnjonhbsmqyu",
@@ -27,63 +35,193 @@ con = psycopg2.connect(user="dzwnjonhbsmqyu",
                        host="ec2-34-232-147-86.compute-1.amazonaws.com",
                        port="5432", database="dcqfivrciptlut")
 cur = con.cursor()
-cur.execute("CREATE TABLE IF NOT EXISTS studentsavers.Room (id serial PRIMARY KEY, status varchar, next_availabletime timestamp);")
+# cur.execute(
+#   "CREATE TABLE IF NOT EXISTS studentsavers.Room (id serial PRIMARY KEY, status varchar, next_availabletime timestamp);")
 con.commit()
 
+
+# Top level conversation callbacks
 def start(update, context):
+    text = 'Hi, welcome to Studentsavers bot. Glad to have you here.What do you want to do? Room Searching is only ' \
+           'available for SoC buildings. To abort, simply type /stop.'
+    buttons = [[
+        InlineKeyboardButton(text='Event Handling', callback_data=str(EVENT_HANDLING)),
+        InlineKeyboardButton(text='Room Searching', callback_data=str(ROOM_SEARCHING))
+    ]]
+
+    keyboard = InlineKeyboardMarkup(buttons)
+
+    # If we're starting over we don't need do send a new message
+    if context.user_data.get('START_OVER'):
+        update.callback_query.answer()
+        update.callback_query.edit_message_text(text=text, reply_markup=keyboard)
+    else:
+        update.message.reply_text(text=text, reply_markup=keyboard)
+
+    context.user_data['START_OVER'] = False
+
     cur.execute("INSERT INTO studentsavers.Room(status, next_availabletime) VALUES('Available', CURRENT_TIMESTAMP);")
     con.commit()
 
-    features = [
-        [InlineKeyboardButton('Event Handling', callback_data='eventhandling')],
-        [InlineKeyboardButton('Room Searching', callback_data='roomsearching')]
-    ]
-
-    reply_markup = InlineKeyboardMarkup(features)
-    update.message.reply_text('Hi, welcome to Studentsavers bot. Glad to have you here.What do you want to do?', reply_markup=reply_markup)
     logger.info('/start command triggered')
 
-def inlinebutton(update, context):
-    query = update.callback_query
-    chat_id = query.from_user['id']
+    return SELECTING_ACTION
 
-    if query.data == 'eventhandling':
-        query.edit_message_text(text='You choose {}'.format('Event Handling'))
-        logger.info('eventhandling option selected')
 
-    if query.data == 'roomsearching':
-        query.edit_message_text(text='You choose {}'.format('Checking room availability'))
-        roomList = cur.execute("SELECT * FROM studentsavers.Room")
-        roomList2 = cur.fetchall()
-        con.commit()
-        context.bot.send_message(chat_id, 'Room searching info: {}'.format(roomList2))
-        cur.close()
-        con.close()
-        logger.info('roomsearching option selected')
+def event_handling(update, context):
+    text = 'You have selected event handling service.'
+    update.callback_query.edit_message_text(text=text)
+
+    return HANDLING_EVENT
+
+
+def show_data(update, context):
+    buttons = [[
+        InlineKeyboardButton(text='Back', callback_data=str(END))
+    ]]
+    keyboard = InlineKeyboardMarkup(buttons)
+
+    text = '\n\n selected building: ' + context.chat_data["building"]
+    text += '\n\n selected level: ' + context.chat_data["level"]
+    text += '\n\n selected time frame :' + context.chat_data["time"]
+
+    update.callback_query.answer()
+    update.callback_query.edit_message_text(text=text, reply_markup=keyboard)
+
+    return SHOWING
+
+
+def stop(update, context):
+    """End Conversation by command."""
+    update.message.reply_text('Okay, bye.')
+
+    return END
+
+
+def end(update, context):
+    """End conversation from InlineKeyboardButton."""
+    update.callback_query.answer()
+
+    text = 'See you around!'
+    update.callback_query.edit_message_text(text=text)
+
+    return END
+
+
+# Second level conversation callbacks
+def select_building(update, context):
+    text = 'Choose a building'
+    buttons = [[
+        InlineKeyboardButton(text='COMS1', callback_data='COMS1'),
+        InlineKeyboardButton(text='COMS2', callback_data='COMS2')
+    ], [
+        InlineKeyboardButton(text='Back', callback_data=str(END))
+    ]]
+    keyboard = InlineKeyboardMarkup(buttons)
+
+    update.callback_query.answer()
+    update.callback_query.edit_message_text(text=text, reply_markup=keyboard)
+
+    return SELECT_BUILDING
+
+
+def select_level(update, context):
+    context.chat_data['building'] = update.callback_query.data
+
+    text = 'Choose your level'
+
+    if update.callback_query.data == 'COMS1':
+        buttons = [[
+            InlineKeyboardButton(text='Level B1', callback_data='Level B1'),
+            InlineKeyboardButton(text='Level 1', callback_data='Level 1')
+        ], [
+            InlineKeyboardButton(text='Level 2', callback_data='Level 2'),
+            InlineKeyboardButton(text='Back', callback_data=str(END))
+        ]]
+
+    else:
+        buttons = [[
+            InlineKeyboardButton(text='Level 2', callback_data='Level 2'),
+            InlineKeyboardButton(text='Level 3', callback_data='Level 3')
+        ], [
+            InlineKeyboardButton(text='Level 4', callback_data='Level 4'),
+            InlineKeyboardButton(text='Back', callback_data=str(END))
+        ]]
+    keyboard = InlineKeyboardMarkup(buttons)
+
+    update.callback_query.answer()
+    update.callback_query.edit_message_text(text=text, reply_markup=keyboard)
+    return SELECTING_LEVEL
+
+
+def end_second_level(update, context):
+    """Return to top level conversation."""
+    context.user_data['START_OVER'] = True
+    start(update, context)
+
+    return END
+
+
+# Third level callbacks
+def select_feature(update, context):
+    if not context.user_data['START_OVER']:
+        context.chat_data['level'] = update.callback_query.data
+
+    # If we collect features for a new person, clear the cache and save the gender
+    if not context.user_data['START_OVER']:
+
+        update.callback_query.answer()
+    # But after we do that, we need to send a new message
+    else:
+        text = 'Got it! Do click on the respective buttons to move on.'
+
+        buttons = [[
+            InlineKeyboardButton(text='Edit', callback_data='TIME'),
+            InlineKeyboardButton(text='Done', callback_data=str(END)),
+        ]]
+
+        keyboard2 = InlineKeyboardMarkup(buttons)
+
+        update.message.reply_text(text=text, reply_markup=keyboard2)
+
+    context.user_data['START_OVER'] = False
+    return SELECTING_FEATURE
+
+
+def ask_for_input(update, context):
+    """Prompt user to input data for selected feature."""
+    text = 'Please enter time in the following way:  HH:MM format to HH:MM format.'
+
+    update.callback_query.answer()
+    update.callback_query.edit_message_text(text=text)
+
+    return TYPING
+
+
+def save_input(update, context):
+    """Save input for time """
+
+    context.chat_data['time'] = update.message.text
+
+    context.user_data['START_OVER'] = True
+
+    return select_feature(update, context)
+
+
+def stop_nested(update, context):
+    """Completely end conversation from within nested conversation."""
+    update.message.reply_text('Hope to see you again!.')
+
+    return STOPPING
 
 
 def setCom(update, context):
     update.message.reply_text('/set <date>')
 
-def help(update, context):
-    """Send a message when the command /help is issued."""
-    update.message.reply_text('Help!')
-
-
-def echo(update, context):
-    """Echo the user message."""
-    update.message.reply_text(update.message.text)
-
-
-def error(update, context):
-    """Log Errors caused by Updates."""
-    logger.warning('Update "%s" caused error "%s"', update, context.error)
-
-
-def alarm(context):
-    # Send alarm message
-    job = context.job
-    context.bot.send_message(job.context, text='CS2030 DEADLINE')
+    def alarm(context2):
+        # Send alarm message
+        job = context2.job
+        context2.bot.send_message(job.context, text='CS2030 DEADLINE')
 
 
 def set_timer(update, context):
@@ -126,8 +264,19 @@ def unset(update, context):
 
     update.message.reply_text('Timer successfully unset!')
 
+
+def help(update, context):
+    """Send a message when the command /help is issued."""
+    update.message.reply_text('Help!')
+
+
+# Error handler
+def error(update, context):
+    """Log Errors caused by Updates."""
+    logger.warning('Update "%s" caused error "%s"', update, context.error)
+
+
 def main():
-    """Start the bot."""
     # Create the Updater and pass it your bot's token.
     # Make sure to set use_context=True to use the new context based callbacks
     # Post version 12 this will no longer be necessary
@@ -136,9 +285,83 @@ def main():
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
 
-    # on different commands - answer in Telegram
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CallbackQueryHandler(inlinebutton))
+    # Set up third level ConversationHandler (collecting features)
+    input_time_convo = ConversationHandler(
+        entry_points=[CallbackQueryHandler(select_feature,
+                                           pattern='^' + 'Level B1' + '$|^' + 'Level 1' + '$|^' +
+                                                   'Level 2' + '$|^' + 'Level 3' + '$|^' + 'Level 4' + '$')],
+
+        states={
+            SELECTING_FEATURE: [CallbackQueryHandler(ask_for_input,
+                                                     pattern='^(?!' + str(END) + ').*$')],
+            TYPING: [MessageHandler(Filters.text, save_input)],
+        },
+
+        fallbacks=[
+            CallbackQueryHandler(show_data, pattern='^' + str(END) + '$'),
+            CommandHandler('stop', stop_nested)
+        ],
+
+        map_to_parent={
+            # Return to second level menu
+            END: SELECTING_FEATURE,
+            # End conversation alltogether
+            STOPPING: STOPPING,
+        }
+    )
+
+    # Set up second level ConversationHandler (selecting building)
+    choose_building_convo = ConversationHandler(
+        entry_points=[CallbackQueryHandler(select_building,
+                                           pattern='^' + str(ROOM_SEARCHING) + '$')],
+
+        states={
+            SELECT_BUILDING: [CallbackQueryHandler(select_level,
+                                                   pattern='^{0}$|^{1}$'.format('COMS1',
+                                                                                'COMS2'))],
+            SELECTING_LEVEL: [input_time_convo]
+        },
+
+        fallbacks=[
+            CallbackQueryHandler(end_second_level, pattern='^' + str(END) + '$'),
+            CommandHandler('stop', stop_nested)
+        ],
+
+        map_to_parent={
+            # After showing data return to top level menu
+            SHOWING: SHOWING,
+            # Return to top level menu
+            END: SELECTING_ACTION,
+            # End conversation alltogether
+            STOPPING: END,
+        }
+    )
+
+    # Set up top level ConversationHandler (selecting action)
+    # Because the states of the third level conversation map to the ones of the second level
+    # conversation, we need to make sure the top level conversation can also handle them
+    selection_handlers = [
+        choose_building_convo,
+        CallbackQueryHandler(show_data, pattern='^' + str(SHOWING) + '$'),
+        CallbackQueryHandler(event_handling, pattern='^' + str(EVENT_HANDLING) + '$'),
+        CallbackQueryHandler(end, pattern='^' + str(END) + '$'),
+    ]
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler('start', start)],
+
+        states={
+            SHOWING: [CallbackQueryHandler(start, pattern='^' + str(END) + '$')],
+            SELECTING_ACTION: selection_handlers,
+            SELECT_BUILDING: selection_handlers,
+            HANDLING_EVENT: [input_time_convo],
+            STOPPING: [CommandHandler('start', start)],
+        },
+
+        fallbacks=[
+            CommandHandler('stop', stop)],
+    )
+
+    dp.add_handler(conv_handler)
     dp.add_handler(CommandHandler("help", help))
 
     # log all errors
@@ -161,6 +384,7 @@ def main():
     # SIGTERM or SIGABRT. This should be used most of the time, since
     # start_polling() is non-blocking and will stop the bot gracefully.
     updater.idle()
+
 
 if __name__ == '__main__':
     main()
