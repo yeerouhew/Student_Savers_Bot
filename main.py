@@ -27,7 +27,7 @@ cur.execute(
 con.commit()
 
 # State definitions for top level conversation
-SELECTING_ACTION, ROOM_SEARCHING, ADDING_SELF, DESCRIBING_SELF = map(chr, range(4))
+SELECTING_ACTION, ROOM_SEARCHING, EVENT_HANDLING, events = map(chr, range(4))
 # State definitions for second level conversation
 SELECT_BUILDING, SELECTING_LEVEL = map(chr, range(4, 6))
 # State definitions for descriptions conversation
@@ -48,7 +48,7 @@ def start(update, context):
     text = 'Hi, welcome to Studentsavers bot. Glad to have you here.What do you want to do? Room Searching is only ' \
            'available for SoC buildings. To abort, simply type /stop.'
     buttons = [[
-        InlineKeyboardButton(text='Event Handling', callback_data=str(ADDING_SELF)),
+        InlineKeyboardButton(text='Event Handling', callback_data=str(EVENT_HANDLING)),
         InlineKeyboardButton(text='Room Searching', callback_data=str(ROOM_SEARCHING))
     ], [
         InlineKeyboardButton(text='Done', callback_data=str(END))
@@ -67,17 +67,10 @@ def start(update, context):
     return SELECTING_ACTION
 
 
-def adding_self(update, context):
-    """Add information about youself."""
-    context.user_data[CURRENT_LEVEL] = EVENT
-    text = 'Okay, please tell me about yourself.'
-    button = InlineKeyboardButton(text='Add info', callback_data=str(LEVELB1))
-    keyboard = InlineKeyboardMarkup.from_button(button)
+def event_handling(update, context):
+    """for on click, event handling"""
 
-    update.callback_query.answer()
-    update.callback_query.edit_message_text(text=text, reply_markup=keyboard)
-
-    return DESCRIBING_SELF
+    return events
 
 
 def show_data(update, context):
@@ -380,7 +373,7 @@ def main():
     selection_handlers = [
         add_member_conv,
         CallbackQueryHandler(show_data, pattern='^' + str(SHOWING) + '$'),
-        CallbackQueryHandler(adding_self, pattern='^' + str(ADDING_SELF) + '$'),
+        CallbackQueryHandler(event_handling, pattern='^' + str(EVENT_HANDLING) + '$'),
         CallbackQueryHandler(end, pattern='^' + str(END) + '$'),
     ]
     conv_handler = ConversationHandler(
@@ -390,7 +383,7 @@ def main():
             SHOWING: [CallbackQueryHandler(start, pattern='^' + str(END) + '$')],
             SELECTING_ACTION: selection_handlers,
             SELECT_BUILDING: selection_handlers,
-            DESCRIBING_SELF: [InputTime_Convo],
+            events: [InputTime_Convo],
             STOPPING: [CommandHandler('start', start)],
         },
 
