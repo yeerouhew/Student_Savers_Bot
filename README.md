@@ -26,3 +26,4 @@ so that I do not extend/overshoot my lesson and inconvenience the next group of 
 
 **Scope of Project:**
 <br /> <br />
+The Telegram bot provides a chat-like interface for students to find out academic assessment/assignment deadlines in a single platform. It also offers the convenience of checking deadlines by sending out reminders through scheduled messages and automatically adding the important dates to the Google calendar
