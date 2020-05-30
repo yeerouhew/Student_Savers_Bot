@@ -2,7 +2,6 @@
 
 **Proposed Level of Achievement:** Project Gemini
 
-![Image of bot icon]() <br />
 Studentsavers bot is a telegram bot which helps NUS students to keep track of their weekly deliverables and also search for 
 room availability in the school premises.
 
