@@ -26,4 +26,16 @@ so that I do not extend/overshoot my lesson and inconvenience the next group of 
 
 **Scope of Project:**
 <br /> <br />
-The Telegram bot provides a chat-like interface for students to find out academic assessment/assignment deadlines in a single platform. It also offers the convenience of checking deadlines by sending out reminders through scheduled messages and automatically adding the important dates to the Google calendar
+The Telegram bot provides a chat-like interface for students to find out academic assessment/assignment deadlines in a single platform. It also offers the convenience of checking deadlines by sending out reminders through scheduled messages and automatically adding the important dates to the Google calendar.  
+
+Besides that, the bot also provides the feature for students to search for empty tutorial rooms within SoC in a particular time frame. Students will have to choose the buildings(COMS1 , COMS2), the level and input the respective time frame (ie, 12pm to 1pm). The bot will process the data and return them a list of empty tutorial rooms within that time frame. 
+
+**Features to be completed**
+* by end-June
+  1. Unfinished Telegram UI
+  2. Integrating Nusmods API to the telegram bot
+     * Being able to process data from Nusmods API (venues information)  to telegram
+  3. Telegram bot will be able to send out reminder messages to students from the “hard-coded” data from database
+* by end-July
+  1. Integrating Luminus API to the telegram bot
+  2. Telegram bot will be able to allow students to add important dates to Google calendar.
