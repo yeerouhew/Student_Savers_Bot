@@ -76,6 +76,7 @@ def get_roomData(update, context):
     roomList2 = cur.fetchall()
     con.commit()
     context.bot.send_message(chat_id, 'Room searching info: {}'.format(roomList2))
+    print("get room_data called")
     cur.close()
     con.close()
     logger.info('roomsearching option selected')
@@ -365,7 +366,7 @@ def main():
     )
 
     dp.add_handler(conv_handler)
-    dp.add_handler(CommandHandler("help", help))
+    dp.add_handler(CommandHandler("h", help))
     dp.add_handler(CommandHandler("retrieve", get_roomData))
 
     # log all errors
