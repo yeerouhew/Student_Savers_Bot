@@ -67,6 +67,20 @@ def start(update, context):
 
     return SELECTING_ACTION
 
+def get_roomData(update, context):
+    query = update.callback_query
+    chat_id = query.from_user['id']
+
+    query.edit_message_text(text='You choose {}'.format('Checking room availability'))
+    roomList = cur.execute("SELECT * FROM studentsavers.Room")
+    roomList2 = cur.fetchall()
+    con.commit()
+    context.bot.send_message(chat_id, 'Room searching info: {}'.format(roomList2))
+    cur.close()
+    con.close()
+    logger.info('roomsearching option selected')
+
+
 
 def event_handling(update, context):
     text = 'You have selected event handling service.'
@@ -96,6 +110,7 @@ def stop(update, context):
     update.message.reply_text('See you around!')
 
     return END
+
 
 # Second level conversation callbacks
 def select_building(update, context):
@@ -207,10 +222,11 @@ def stop_nested(update, context):
 def setCom(update, context):
     update.message.reply_text('/set <date>')
 
+
 def alarm(context):
-        # Send alarm message
-        job = context.job
-        context.bot.send_message(job.context, text='CS2030 DEADLINE')
+    # Send alarm message
+    job = context.job
+    context.bot.send_message(job.context, text='CS2030 DEADLINE')
 
 
 def set_timer(update, context):
@@ -331,9 +347,7 @@ def main():
     # conversation, we need to make sure the top level conversation can also handle them
     selection_handlers = [
         choose_building_convo,
-        CallbackQueryHandler(show_data, pattern='^' + str(SHOWING) + '$'),
         CallbackQueryHandler(event_handling, pattern='^' + str(EVENT_HANDLING) + '$'),
-        CallbackQueryHandler(end, pattern='^' + str(END) + '$'),
     ]
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
@@ -352,6 +366,7 @@ def main():
 
     dp.add_handler(conv_handler)
     dp.add_handler(CommandHandler("help", help))
+    dp.add_handler(CommandHandler("retrieve", get_roomData))
 
     # log all errors
     dp.add_error_handler(error)
@@ -368,15 +383,7 @@ def main():
                           port=int(PORT),
                           url_path=TOKEN)
     updater.bot.setWebhook('https://student-saversbot.herokuapp.com/' + TOKEN)
-
-    # Run the bot until you press Ctrl-C or the process receives SIGINT,
-    # SIGTERM or SIGABRT. This should be used most of the time, since
-    # start_polling() is non-blocking and will stop the bot gracefully.
     updater.idle()
-
-    if updater.is_idle:
-        stop()
-
 
 if __name__ == '__main__':
     main()
