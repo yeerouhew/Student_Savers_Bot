@@ -81,9 +81,9 @@ def show_data(update, context):
     ]]
     keyboard = InlineKeyboardMarkup(buttons)
 
-    text = '\n\n selected building: ' + context.chat_data["building"]
-    text += '\n\n selected level: ' + context.chat_data["level"]
-    text += '\n\n selected time frame :' + context.chat_data["time"]
+    text = '\n\n Selected building: ' + context.chat_data["building"]
+    text += '\n\n Selected level: ' + context.chat_data["level"]
+    text += '\n\n Selected time frame :' + context.chat_data["time"]
 
     update.callback_query.answer()
     update.callback_query.edit_message_text(text=text, reply_markup=keyboard)
@@ -93,20 +93,9 @@ def show_data(update, context):
 
 def stop(update, context):
     """End Conversation by command."""
-    update.message.reply_text('Okay, bye.')
+    update.message.reply_text('See you around!')
 
     return END
-
-
-def end(update, context):
-    """End conversation from InlineKeyboardButton."""
-    update.callback_query.answer()
-
-    text = 'See you around!'
-    update.callback_query.edit_message_text(text=text)
-
-    return END
-
 
 # Second level conversation callbacks
 def select_building(update, context):
@@ -384,6 +373,9 @@ def main():
     # SIGTERM or SIGABRT. This should be used most of the time, since
     # start_polling() is non-blocking and will stop the bot gracefully.
     updater.idle()
+
+    if updater.is_idle:
+        stop()
 
 
 if __name__ == '__main__':
