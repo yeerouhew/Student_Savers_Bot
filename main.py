@@ -84,8 +84,7 @@ def get_roomData(update, context):
 
 
 def event_handling(update, context):
-    text = 'You have selected event handling service.'
-    update.callback_query.edit_message_text(text=text)
+    update.callback_query.edit_message_text(text='Please set a date')
 
     return HANDLING_EVENT
 
