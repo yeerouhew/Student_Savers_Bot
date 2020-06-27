@@ -20,7 +20,7 @@ STOPPING, SHOWING = map(chr, range(8, 10))
 # Shortcut for ConversationHandler.END
 END = ConversationHandler.END
 
-PORT = int(os.environ.get('PORT', 5000))
+PORT = int(os.environ.get('PORT', 8843))
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -285,7 +285,7 @@ def main():
     # Create the Updater and pass it your bot's token.
     # Make sure to set use_context=True to use the new context based callbacks
     # Post version 12 this will no longer be necessary
-    updater = Updater(TOKEN, use_context=True)
+    updater = Updater(TOKEN,use_context=True)
 
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
@@ -379,11 +379,13 @@ def main():
     dp.add_handler(CommandHandler("unset", unset, pass_chat_data=True))
 
     # Start the Bot
+
+    updater.start_polling()
+
     updater.start_webhook(listen="0.0.0.0",
                           port=int(PORT),
-                          url_path=TOKEN)
+                         url_path=TOKEN)
     updater.bot.setWebhook('https://student-saversbot.herokuapp.com/' + TOKEN)
-    updater.idle()
 
 if __name__ == '__main__':
     main()
