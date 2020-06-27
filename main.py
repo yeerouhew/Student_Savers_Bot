@@ -1,9 +1,6 @@
-import json
 import logging
 import os
-from urllib.request import urlopen
 
-import pytz
 from telegram import (InlineKeyboardMarkup, InlineKeyboardButton)
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters,
                           ConversationHandler, CallbackQueryHandler)
@@ -18,9 +15,6 @@ SELECTING_ACTION, ROOM_SEARCHING, EVENT_HANDLING, HANDLING_EVENT = map(chr, rang
 SELECT_BUILDING, SELECTING_LEVEL = map(chr, range(4, 6))
 # State definitions for descriptions conversation
 SELECTING_FEATURE, TYPING = map(chr, range(6, 8))
-
-SELECTED_ROOM = map(chr, range(8, 9))
-
 # Meta states
 STOPPING, SHOWING = map(chr, range(8, 10))
 # Shortcut for ConversationHandler.END
@@ -33,7 +27,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
                     level=logging.INFO)
 
 logger = logging.getLogger(__name__)
-TOKEN = "1278045157:AAHCKTffFYAegrjgzTfm1KsgVuj4g0vRf78"
+TOKEN = "1278045157:AAFjUYhhg50425eKh6cTKpF9APpzwjOdYiU"
 
 # DB connection
 con = psycopg2.connect(user="dzwnjonhbsmqyu",
@@ -57,9 +51,6 @@ def start(update, context):
 
     keyboard = InlineKeyboardMarkup(buttons)
 
-    context.chat_data["date"] = datetime.datetime.now(pytz.timezone('Asia/Singapore'))
-    context.chat_data["day"] = datetime.datetime.now(pytz.timezone('Asia/Singapore')).strftime("%A")
-
     # If we're starting over we don't need do send a new message
     if context.user_data.get('START_OVER'):
         update.callback_query.answer()
@@ -76,7 +67,6 @@ def start(update, context):
 
     return SELECTING_ACTION
 
-
 def get_roomData(update, context):
     query = update.callback_query
     chat_id = query.from_user['id']
@@ -92,92 +82,24 @@ def get_roomData(update, context):
     logger.info('roomsearching option selected')
 
 
+
 def event_handling(update, context):
     update.callback_query.edit_message_text(text='Please set a date')
 
     return HANDLING_EVENT
 
 
-def callNusmodApi(update, context):
-    url = "https://api.nusmods.com/v2/2019-2020/semesters/2/venueInformation.json"
-
-    jsonurl = urlopen(url)
-    text = json.loads(jsonurl.read())  # <-- read from it
-
-    print(text)
-    # update.message.reply_text(info)
-
-
-def callNusmodApi(date, day, start_time, end_time, list_of_rooms):
-    url = "https://api.nusmods.com/v2/2019-2020/semesters/2/venueInformation.json"
-
-    text = json.load(urllib2.urlopen(url))  # <-- read from it
-
-    current_weekNo = roomSearch.return_weekNo(date)
-    available_rooms = []
-
-    for rooms in list_of_rooms:
-
-        if text[rooms][0]["classes"]:
-
-            for index in range(0, len(text[rooms][0]["classes"])):
-
-                weekNo = text[rooms][0]["classes"][index]["weeks"]
-
-                for num in weekNo:
-
-                    if int(current_weekNo) == num:
-
-                        if text[rooms][0]["classes"][index]["day"] == day:
-
-                            start_classTime = datetime.datetime.strptime(text[rooms][0]["classes"][index]["startTime"],
-                                                                         '%H%M').time()
-
-                            end_classTime = datetime.datetime.strptime(text[rooms][0]["classes"][index]["endTime"],
-                                                                       '%H%M').time()
-
-                            if start_time < start_classTime and end_time < end_classTime:
-                                available_rooms.append(rooms)
-                            elif available_rooms.count(rooms) > 0:
-                                available_rooms.remove(rooms)
-                                break
-                        else:
-                            available_rooms.append(rooms)
-
-    available_rooms = list(dict.fromkeys(available_rooms))
-
-    return available_rooms
-
-
 def show_data(update, context):
-    if context.chat_data["building"] == "COMS1":
-        room_label = roomSearch.com1_data(context.chat_data["level"])
-
-    else:
-        room_label = roomSearch.com2_data(context.chat_data["level"])
-
-    available_rooms_data = callNusmodApi(context.chat_data["date"], context.chat_data["day"],
-                                         context.chat_data["start_time"], context.chat_data["end_time"],
-                                         room_label)
-
-    if len(available_rooms_data) > 0:
-        text = 'Rooms available are : '
-
-        for rooms in available_rooms_data:
-            text += '\n' + rooms
-
-    else:
-        text = " No available room found"
-
-    context.chat_data["avail_rooms"] = available_rooms_data
-
     buttons = [[
-        InlineKeyboardButton(text='Check in', callback_data='check-in'),
         InlineKeyboardButton(text='Back', callback_data=str(END))
     ]]
-
     keyboard = InlineKeyboardMarkup(buttons)
 
+    text = '\n\n Selected building: ' + context.chat_data["building"]
+    text += '\n\n Selected level: ' + context.chat_data["level"]
+    text += '\n\n Selected time frame :' + context.chat_data["time"]
+
+    update.callback_query.answer()
     update.callback_query.edit_message_text(text=text, reply_markup=keyboard)
 
     return SHOWING
@@ -188,27 +110,6 @@ def stop(update, context):
     update.message.reply_text('See you around!')
 
     return END
-
-
-def select_available_room(update, context):
-    text = 'Choose a room: '
-
-    buttons = [];
-    if len(context.chat_data["avail_rooms"]) > 0:
-        for rooms in context.chat_data["avail_rooms"]:
-            buttons.append([InlineKeyboardButton(text=rooms, callback_data=rooms)])
-
-    keyboard = InlineKeyboardMarkup(buttons)
-
-    update.callback_query.answer()
-    update.callback_query.edit_message_text(text=text, reply_markup=keyboard)
-
-    return SELECTED_ROOM
-
-
-def show_check_in_data(update, context):
-    print("hello check in data")
-    print(update.callback_query.data)
 
 
 # Second level conversation callbacks
@@ -304,9 +205,7 @@ def ask_for_input(update, context):
 def save_input(update, context):
     """Save input for time """
 
-    message = update.message.text.replace("to", " ")
-    context.chat_data['start_time'] = datetime.datetime.strptime(message.split()[0], '%H:%M').time()
-    context.chat_data['end_time'] = datetime.datetime.strptime(message.split()[1], '%H:%M').time()
+    context.chat_data['time'] = update.message.text
 
     context.user_data['START_OVER'] = True
 
@@ -392,28 +291,6 @@ def main():
     dp = updater.dispatcher
 
     # Set up third level ConversationHandler (collecting features)
-    checking_in_convo = ConversationHandler(
-        entry_points=[CallbackQueryHandler(select_available_room, pattern='^check-in$')],
-
-        states={
-            SELECTED_ROOM: [CallbackQueryHandler(show_check_in_data)],
-
-        },
-
-        fallbacks=[
-            CallbackQueryHandler(show_check_in_data),
-            CommandHandler('stop', stop_nested)
-        ],
-
-        map_to_parent={
-            # Return to second level menu
-            END: select_feature,
-            # End conversation alltogether
-            STOPPING: STOPPING,
-        }
-    )
-
-    # Set up third level ConversationHandler (collecting features)
     input_time_convo = ConversationHandler(
         entry_points=[CallbackQueryHandler(select_feature,
                                            pattern='^' + 'Level B1' + '$|^' + 'Level 1' + '$|^' +
@@ -423,18 +300,16 @@ def main():
             SELECTING_FEATURE: [CallbackQueryHandler(ask_for_input,
                                                      pattern='^(?!' + str(END) + ').*$')],
             TYPING: [MessageHandler(Filters.text, save_input)],
-            SHOWING: [checking_in_convo]
-
         },
 
         fallbacks=[
-            CallbackQueryHandler(show_data),
+            CallbackQueryHandler(show_data, pattern='^' + str(END) + '$'),
             CommandHandler('stop', stop_nested)
         ],
 
         map_to_parent={
             # Return to second level menu
-            END: SELECTING_LEVEL,
+            END: SELECTING_FEATURE,
             # End conversation alltogether
             STOPPING: STOPPING,
         }
@@ -478,6 +353,7 @@ def main():
         entry_points=[CommandHandler('start', start)],
 
         states={
+            SHOWING: [CallbackQueryHandler(start, pattern='^' + str(END) + '$')],
             SELECTING_ACTION: selection_handlers,
             SELECT_BUILDING: selection_handlers,
             HANDLING_EVENT: [input_time_convo],
@@ -508,7 +384,6 @@ def main():
                           url_path=TOKEN)
     updater.bot.setWebhook('https://student-saversbot.herokuapp.com/' + TOKEN)
     updater.idle()
-
 
 if __name__ == '__main__':
     main()
