@@ -19,7 +19,7 @@ SELECT_BUILDING, SELECTING_LEVEL = map(chr, range(4, 6))
 # State definitions for descriptions conversation
 SELECTING_FEATURE, TYPING = map(chr, range(6, 8))
 
-SELECTED_ROOM = map(chr, range(8, 9))
+SELECTED_ROOM, SUCCESSFUL_CHECK_IN = map(chr, range(10, 12))
 
 # Meta states
 STOPPING, SHOWING = map(chr, range(8, 10))
@@ -287,15 +287,33 @@ def show_check_in_data(update, context):
     print("hello check in data")
     print(update.callback_query.data)
 
-    room_no_text = update.callback_query.data
+    context.chat_data['chosen_room'] = update.callback_query.data
+
+    builing_text = context.chat_data['building']
+    level_text = context.chat_data['level']
+    room_no_text = context.chat_data['chosen_room']
     start_time_text = context.chat_data['start_time'].strftime("%H%M")
     end_time_text = context.chat_data['end_time'].strftime("%H%M")
 
     date_text = context.chat_data['date'].strftime("%y-%m-%d")
 
-    val = (room_no_text, start_time_text,end_time_text,date_text)
-    cur.execute("INSERT INTO studentsavers.rooms(room_no, start_time,end_time,date) VALUES (%s, %s, %s, %s)",val)
+    val = (builing_text, level_text, room_no_text, start_time_text, end_time_text, date_text)
+    cur.execute("INSERT INTO"
+                " studentsavers.rooms(building, level, room_no, start_time,end_time,date) VALUES (%s,%s,%s,%s, "
+                "%s,%s) "
+                , val)
+
     con.commit()
+
+    return SUCCESSFUL_CHECK_IN
+
+
+def show_successful_check_in_msg(update, context):
+    text = 'You have successfully check in to ' + context.chat_data['chosen_room'] \
+           + ' from ' + context.chat_data['start_time'] + ' to ' + context.chat_data['end_time']
+
+    update.callback_query.answer()
+    update.callback_query.edit_message_text(text=text)
 
 
 def stop_nested(update, context):
@@ -381,6 +399,7 @@ def main():
 
         states={
             SELECTED_ROOM: [CallbackQueryHandler(show_check_in_data)],
+            SUCCESSFUL_CHECK_IN: [MessageHandler(Filters.text, ask_for_input)]
 
         },
 
@@ -486,8 +505,6 @@ def main():
     dp.add_handler(CommandHandler("unset", unset, pass_chat_data=True))
 
     # Start the Bot
-
-    updater.start_polling()
 
     updater.start_webhook(listen="0.0.0.0",
                           port=int(PORT),
