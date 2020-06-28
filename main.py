@@ -1,13 +1,16 @@
+import json
 import logging
 import os
 
-from telegram import (InlineKeyboardMarkup, InlineKeyboardButton)
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters,
                           ConversationHandler, CallbackQueryHandler)
 from telegram import InlineKeyboardMarkup
 from telegram import InlineKeyboardButton
 import datetime
 import psycopg2
+import pytz
+import urllib3
+import roomSearch
 
 # State definitions for top level conversation
 SELECTING_ACTION, ROOM_SEARCHING, EVENT_HANDLING, HANDLING_EVENT = map(chr, range(4))
@@ -15,12 +18,16 @@ SELECTING_ACTION, ROOM_SEARCHING, EVENT_HANDLING, HANDLING_EVENT = map(chr, rang
 SELECT_BUILDING, SELECTING_LEVEL = map(chr, range(4, 6))
 # State definitions for descriptions conversation
 SELECTING_FEATURE, TYPING = map(chr, range(6, 8))
+
+SELECTED_ROOM = map(chr, range(8, 9))
+
 # Meta states
 STOPPING, SHOWING = map(chr, range(8, 10))
+
 # Shortcut for ConversationHandler.END
 END = ConversationHandler.END
 
-PORT = int(os.environ.get('PORT', 8843))
+PORT = int(os.environ.get('PORT', 5000))
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -49,6 +56,9 @@ def start(update, context):
         InlineKeyboardButton(text='Room Searching', callback_data=str(ROOM_SEARCHING))
     ]]
 
+    context.chat_data["date"] = datetime.datetime.now(pytz.timezone('Asia/Singapore'))
+    context.chat_data["day"] = datetime.datetime.now(pytz.timezone('Asia/Singapore')).strftime("%A")
+
     keyboard = InlineKeyboardMarkup(buttons)
 
     # If we're starting over we don't need do send a new message
@@ -60,27 +70,9 @@ def start(update, context):
 
     context.user_data['START_OVER'] = False
 
-    cur.execute("INSERT INTO studentsavers.Room(status, next_availabletime) VALUES('Available', CURRENT_TIMESTAMP);")
-    con.commit()
-
     logger.info('/start command triggered')
 
     return SELECTING_ACTION
-
-def get_roomData(update, context):
-    query = update.callback_query
-    chat_id = query.from_user['id']
-
-    query.edit_message_text(text='You choose {}'.format('Checking room availability'))
-    roomList = cur.execute("SELECT * FROM studentsavers.Room")
-    roomList2 = cur.fetchall()
-    con.commit()
-    context.bot.send_message(chat_id, 'Room searching info: {}'.format(roomList2))
-    print("get room_data called")
-    cur.close()
-    con.close()
-    logger.info('roomsearching option selected')
-
 
 
 def event_handling(update, context):
@@ -89,17 +81,78 @@ def event_handling(update, context):
     return HANDLING_EVENT
 
 
+def callNusmodApi(date, day, start_time, end_time, list_of_rooms):
+    url = "https://api.nusmods.com/v2/2019-2020/semesters/2/venueInformation.json"
+
+    http = urllib3.PoolManager()
+    json_obj = http.request('GET', url)
+    text = json.loads(json_obj.data.decode('UTF-8'))
+
+    current_weekNo = roomSearch.return_weekNo(date)
+    available_rooms = []
+
+    for rooms in list_of_rooms:
+
+        if text[rooms][0]["classes"]:
+
+            for index in range(0, len(text[rooms][0]["classes"])):
+
+                weekNo = text[rooms][0]["classes"][index]["weeks"]
+
+                for num in weekNo:
+
+                    if int(current_weekNo) == num:
+
+                        if text[rooms][0]["classes"][index]["day"] == day:
+
+                            start_classTime = datetime.datetime.strptime(text[rooms][0]["classes"][index]["startTime"],
+                                                                         '%H%M').time()
+
+                            end_classTime = datetime.datetime.strptime(text[rooms][0]["classes"][index]["endTime"],
+                                                                       '%H%M').time()
+
+                            if start_time < start_classTime and end_time < end_classTime:
+                                available_rooms.append(rooms)
+                            elif available_rooms.count(rooms) > 0:
+                                available_rooms.remove(rooms)
+                                break
+                        else:
+                            available_rooms.append(rooms)
+
+    available_rooms = list(dict.fromkeys(available_rooms))
+
+    return available_rooms
+
+
 def show_data(update, context):
+    if context.chat_data["building"] == "COMS1":
+        room_label = roomSearch.com1_data(context.chat_data["level"])
+
+    else:
+        room_label = roomSearch.com2_data(context.chat_data["level"])
+
+    available_rooms_data = callNusmodApi(context.chat_data["date"], context.chat_data["day"],
+                                         context.chat_data["start_time"], context.chat_data["end_time"],
+                                         room_label)
+
+    if len(available_rooms_data) > 0:
+        text = 'Rooms available are : '
+
+        for rooms in available_rooms_data:
+            text += '\n' + rooms
+
+    else:
+        text = " No available room found"
+
+    context.chat_data["avail_rooms"] = available_rooms_data
+
     buttons = [[
+        InlineKeyboardButton(text='Check in', callback_data='check-in'),
         InlineKeyboardButton(text='Back', callback_data=str(END))
     ]]
+
     keyboard = InlineKeyboardMarkup(buttons)
 
-    text = '\n\n Selected building: ' + context.chat_data["building"]
-    text += '\n\n Selected level: ' + context.chat_data["level"]
-    text += '\n\n Selected time frame :' + context.chat_data["time"]
-
-    update.callback_query.answer()
     update.callback_query.edit_message_text(text=text, reply_markup=keyboard)
 
     return SHOWING
@@ -205,11 +258,44 @@ def ask_for_input(update, context):
 def save_input(update, context):
     """Save input for time """
 
-    context.chat_data['time'] = update.message.text
+    message = update.message.text.replace("to", " ")
+    context.chat_data['start_time'] = datetime.datetime.strptime(message.split()[0], '%H:%M').time()
+    context.chat_data['end_time'] = datetime.datetime.strptime(message.split()[1], '%H:%M').time()
 
     context.user_data['START_OVER'] = True
 
     return select_feature(update, context)
+
+
+def select_available_room(update, context):
+    text = 'Choose a room: '
+
+    buttons = [];
+    if len(context.chat_data["avail_rooms"]) > 0:
+        for rooms in context.chat_data["avail_rooms"]:
+            buttons.append([InlineKeyboardButton(text=rooms, callback_data=rooms)])
+
+    keyboard = InlineKeyboardMarkup(buttons)
+
+    update.callback_query.answer()
+    update.callback_query.edit_message_text(text=text, reply_markup=keyboard)
+
+    return SELECTED_ROOM
+
+
+def show_check_in_data(update, context):
+    print("hello check in data")
+    print(update.callback_query.data)
+
+    room_no_text = update.callback_query.data
+    start_time_text = context.chat_data['start_time'].strftime("%H%M")
+    end_time_text = context.chat_data['end_time'].strftime("%H%M")
+
+    date_text = context.chat_data['date'].strftime("%y-%m-%d")
+
+    val = (room_no_text, start_time_text,end_time_text,date_text)
+    cur.execute("INSERT INTO studentsavers.rooms(room_no, start_time,end_time,date) VALUES (%s, %s, %s, %s)",val)
+    con.commit()
 
 
 def stop_nested(update, context):
@@ -285,10 +371,31 @@ def main():
     # Create the Updater and pass it your bot's token.
     # Make sure to set use_context=True to use the new context based callbacks
     # Post version 12 this will no longer be necessary
-    updater = Updater(TOKEN,use_context=True)
+    updater = Updater(TOKEN, use_context=True)
 
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
+
+    checking_in_convo = ConversationHandler(
+        entry_points=[CallbackQueryHandler(select_available_room, pattern='^check-in$')],
+
+        states={
+            SELECTED_ROOM: [CallbackQueryHandler(show_check_in_data)],
+
+        },
+
+        fallbacks=[
+            CallbackQueryHandler(show_check_in_data),
+            CommandHandler('stop', stop_nested)
+        ],
+
+        map_to_parent={
+            # Return to second level menu
+            END: select_feature,
+            # End conversation alltogether
+            STOPPING: STOPPING,
+        }
+    )
 
     # Set up third level ConversationHandler (collecting features)
     input_time_convo = ConversationHandler(
@@ -300,16 +407,18 @@ def main():
             SELECTING_FEATURE: [CallbackQueryHandler(ask_for_input,
                                                      pattern='^(?!' + str(END) + ').*$')],
             TYPING: [MessageHandler(Filters.text, save_input)],
+            SHOWING: [checking_in_convo]
+
         },
 
         fallbacks=[
-            CallbackQueryHandler(show_data, pattern='^' + str(END) + '$'),
+            CallbackQueryHandler(show_data),
             CommandHandler('stop', stop_nested)
         ],
 
         map_to_parent={
             # Return to second level menu
-            END: SELECTING_FEATURE,
+            END: SELECTING_LEVEL,
             # End conversation alltogether
             STOPPING: STOPPING,
         }
@@ -353,7 +462,6 @@ def main():
         entry_points=[CommandHandler('start', start)],
 
         states={
-            SHOWING: [CallbackQueryHandler(start, pattern='^' + str(END) + '$')],
             SELECTING_ACTION: selection_handlers,
             SELECT_BUILDING: selection_handlers,
             HANDLING_EVENT: [input_time_convo],
@@ -366,7 +474,6 @@ def main():
 
     dp.add_handler(conv_handler)
     dp.add_handler(CommandHandler("h", help))
-    dp.add_handler(CommandHandler("retrieve", get_roomData))
 
     # log all errors
     dp.add_error_handler(error)
@@ -384,8 +491,9 @@ def main():
 
     updater.start_webhook(listen="0.0.0.0",
                           port=int(PORT),
-                         url_path=TOKEN)
+                          url_path=TOKEN)
     updater.bot.setWebhook('https://student-saversbot.herokuapp.com/' + TOKEN)
+
 
 if __name__ == '__main__':
     main()
