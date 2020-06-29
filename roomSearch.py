@@ -3,25 +3,26 @@ import datetime
 import pytz as pytz
 
 
+# data from luminus api
 def com1_data(level):
     room_label = [];
-    if (level == "Level B1"):
+    if level == "LevelB1":
         room_label = ["COM1-B102", "COM1-B103", "COM1-B108", "COM1-B109", "COM1-B110", "COM1-B111", "COM1-B112",
                       "COM1-B113"]
 
-    elif (level == "Level 1"):
+    elif level == "Level1":
         room_label = ["COM1-0113", "COM1-0114", "COM1-0120"]
 
-    elif (level == "Level 2"):
-        room_label = ["COM1-0216", "COM1-0204", "COM1-0210", "COM1-0212", "COM1-0206", "COM1-0201", "COM1-0209",
-                      "COM1-0208", "COM1-0207", "COM1-0217", "COM1-0203", "COM1-0216"]
+    elif level == "Level2":
+        room_label = ["COM1-0201", "COM1-0203", "COM1-0204", "COM1-0206", "COM1-0207", "COM1-0208", "COM1-0209",
+                      "COM1-0210", "COM1-0212", "COM1-0216", "COM1-0217"]
 
     return room_label
 
 
 def com2_data(level):
     room_label = [];
-    if (level == "1"):
+    if level == "Level1":
         room_label = ["COM2-0108"]
     return room_label
 
@@ -99,5 +100,42 @@ def return_weekNo(dateNo):
     else:
         return "0"
 
+# all rooms in coms1 and coms2
+
+def all_rooms_com1(level):
+    room_array = [];
+
+    print(level)
+
+    if level == "LevelB1":
+        room_array = ["COM1-B06", "COM1-B07", "COM1-B102", "COM1-B103", "COM1-B108", "COM1-B109", "COM1-B110",
+                      "COM1-B111", "COM1-B112",
+                      "COM1-B113", "COM1-B14A", "COM1-B14B"]
+
+    elif level == "Level1":
+        room_array = ["COM1-0112", "COM1-0113", "COM1-0114", "COM1-0118", "COM1-0120", "COM1-0122"]
+
+    elif level == "Level2":
+        room_array = ["COM1-0201", "COM1-0203", "COM1-0204", "COM1-0206", "COM1-0207", "COM1-0208", "COM1-0209",
+                      "COM1-0210", "COM1-0212", "COM1-0213", "COM1-0216", "COM1-0217"]
+
+    elif level == "Level3":
+        room_array = ["COM1-0319", "COM1-0328"]
+
+    return room_array
 
 
+def all_rooms_com2(level):
+
+    print(level)
+    room_label = [];
+    if level == "Level1":
+        room_label = ["COM2-0108"]
+    elif level == "Level2":
+        room_label = ["COM2-0212", "COM2-0220", "COM2-0223", "COM2-0224", "COM2-0226"]
+    elif level == "Level3":
+        room_label = ["COM2-0314", "COM2-0319", "COM2-0328", "COM2-0330"]
+    elif level == "Level4":
+        room_label = ["COM2-0402", "COM2-0406"]
+
+    return room_label
