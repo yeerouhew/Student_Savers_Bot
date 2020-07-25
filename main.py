@@ -652,8 +652,8 @@ def set_timer(update, context):
         due = diff.total_seconds()
         logger.info(due)
         if due < 0:
-            update.message.reply_text('Sorry we can not go back!')
-            return
+            update.message.reply_text('Sorry we can not go back! Please try again')
+            return edit_event_name(update, context)
 
         event_name = context.chat_data['event_name']
         event_detail = context.chat_data['event_detail']
@@ -683,7 +683,8 @@ def set_timer(update, context):
         return add_to_calendar(update, context)
 
     except (IndexError, ValueError):
-        return EVENT_DETAILS
+        update.message.reply_text('Wrong format. Please try again ' + event_name)
+        return edit_event_name(update, context)
 
 
 def alarm(context):
@@ -748,9 +749,12 @@ def confirm_add_to_calendar(update, context):
             text = 'Errors'
 
         update.message.reply_text(text)
+        return end_second_level(update,context)
     else:
         text = 'Please enter a valid email'
         update.message.reply_text(text)
+
+        return edit_event_name(update, context)
 
 
 def help(update, context):
@@ -875,10 +879,19 @@ def main():
         entry_points=[CallbackQueryHandler(event_handling,
                                            pattern='^' + str(EVENT_HANDLING) + '$')],
         states={
-            HANDLING_EVENT: [MessageHandler(Filters.text, set_event_name)],
-            EVENT_DETAILS: [MessageHandler(Filters.text, set_event_details)],
+            HANDLING_EVENT: [
+                MessageHandler(Filters.command, stop_nested),
+                MessageHandler(Filters.text, set_event_name)
+            ],
+            EVENT_DETAILS: [
+                MessageHandler(Filters.command, stop_nested),
+                MessageHandler(Filters.text, set_event_details)
+            ],
             EVENT_DATE: [CallbackQueryHandler(set_event_date)],
-            EVENT_TIME: [MessageHandler(Filters.text, set_event_time)],
+            EVENT_TIME: [
+                MessageHandler(Filters.command, stop_nested),
+                MessageHandler(Filters.text, set_event_time)
+            ],
             TIMER: [
                 CommandHandler('confirm', set_timer, pass_args=True, pass_job_queue=True , pass_chat_data=True),
                 CommandHandler('edit', edit_event_name)
@@ -886,7 +899,6 @@ def main():
             CONFIRM_ADD_CAL: [
                 CommandHandler('yes', ask_confirm_add_cal),
                 CommandHandler('no', end_second_level)
-                # MessageHandler(Filters.text, ask_confirm_add_cal)
             ],
             EMAIL: [
                 CommandHandler('cancel', end_second_level),
@@ -896,11 +908,13 @@ def main():
                 CommandHandler('confirm', confirm_add_to_calendar),
                 CommandHandler('cancel', end_second_level)
             ],
-            HANDLING_EVENT2: [MessageHandler(Filters.text, set_event_name)],
+            HANDLING_EVENT2: [
+                MessageHandler(Filters.command, stop_nested),
+                MessageHandler(Filters.text, set_event_name)
+            ],
         },
 
         fallbacks=[
-            # CallbackQueryHandler(end_second_level, pattern='^' + str(END) + '$'),
             CommandHandler('stop', stop_nested)
         ],
 
@@ -942,12 +956,12 @@ def main():
     dp.add_error_handler(error)
 
     # Start the Bot
-    # updater.start_polling()
-    updater.start_webhook(listen="0.0.0.0",
-                          port=int(PORT),
-                          url_path=TOKEN)
+    updater.start_polling()
+    # updater.start_webhook(listen="0.0.0.0",
+    #                       port=int(PORT),
+    #                       url_path=TOKEN)
     # updater.bot.setWebhook('https://student-saversbot.herokuapp.com/' + TOKEN)
-    updater.bot.setWebhook('https://student-savers-testing24.herokuapp.com/' + TOKEN)
+    # updater.bot.setWebhook('https://student-savers-testing24.herokuapp.com/' + TOKEN)
 
 if __name__ == '__main__':
     main()
