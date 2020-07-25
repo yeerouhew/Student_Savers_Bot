@@ -671,12 +671,12 @@ def set_timer(update, context):
         new_job = context.job_queue.run_once(alarm, due, context=customize_stuff)
         context.chat_data['job'] = new_job
 
-        val = (event_name, event_detail, event_date, event_time, context.chat_data["tele-username"], chat_id)
-        cur.execute("INSERT INTO"
-                    " studentsavers.event(event_name, event_details, event_date, event_time, username, chat_id ) "
-                    "VALUES (%s,%s,%s,%s,%s,%s) "
-                    , val)
-        con.commit()
+        # val = (event_name, event_detail, event_date, event_time, context.chat_data["tele-username"], chat_id)
+        # cur.execute("INSERT INTO"
+        #             " studentsavers.event(event_name, event_details, event_date, event_time, username, chat_id ) "
+        #             "VALUES (%s,%s,%s,%s,%s,%s) "
+        #             , val)
+        # con.commit()
 
         update.message.reply_text('Reminder has been successfully set for ' + event_name)
 
